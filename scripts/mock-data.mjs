@@ -67,6 +67,7 @@ const fs = faculty({
     ] },
     { name: 'TUJ JEZIK (ANGLEŠKI JEZIK)', slots: [{ dow: 3, from: '08:00', to: '09:30', type: 'SE (od A do G)', sub: [1, 2, 3, 4, 5, 6, 7, 8] }] },
     { name: 'TUJ JEZIK (NEMŠKI JEZIK)', slots: [{ dow: 0, from: '13:30', to: '15:10', type: 'SE', sub: [1, 2, 3, 4, 5, 6, 7, 8] }] },
+    { name: 'Rezervacije', slots: [{ dow: 4, from: '20:50', to: '21:10', type: '' }] },
   ],
 })
 

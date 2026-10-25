@@ -36,13 +36,19 @@ export function useStored<T>(key: string, fallback: T) {
   return [value, setValue] as const
 }
 
-/** Vsi podatki uporabnika za izvoz/uvoz (varnostna kopija, prenos na drug telefon). */
-const EXPORT_KEYS = ['profiles', 'hidden', 'custom', 'notes', 'seenChanges', 'settings']
+/**
+ * Podatki uporabnika za izvoz/uvoz (varnostna kopija, prenos na drugo napravo).
+ * Tema in pogled na telefonu NISTA tu – ti nastavitvi sta za vsako napravo svoji.
+ */
+const EXPORT_KEYS = ['profiles', 'hidden', 'custom', 'notes', 'seenChanges', 'view', 'compare']
 
-export function exportAll() {
+export function exportAll(pretty = true) {
   const data: Record<string, unknown> = { app: 'um-urnik', version: 1, exportedAt: new Date().toISOString() }
-  for (const k of EXPORT_KEYS) data[k] = load(k, null)
-  return JSON.stringify(data, null, 2)
+  for (const k of EXPORT_KEYS) {
+    const v = load(k, null)
+    if (v !== null) data[k] = v
+  }
+  return pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data)
 }
 
 export function importAll(json: string) {

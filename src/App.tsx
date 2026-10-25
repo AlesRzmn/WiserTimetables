@@ -5,10 +5,12 @@ import {
   loadProfileData, toCal, type ProfileData, type Segment,
 } from './lib/data'
 import { addDays, nowLocal, parseDate, relTime, today, weekLabel, weekStart } from './lib/time'
-import { exportAll, importAll, uid, useStored } from './lib/storage'
+import { uid, useStored } from './lib/storage'
+import { clearHash, sharedInHash } from './lib/share'
 import { PROFILE_COLORS } from './lib/colors'
 import { changeDetails, changeTitle } from './lib/changes'
-import { WeekView, type Lane } from './components/WeekView'
+import { WeekView, isOutside, type Lane } from './components/WeekView'
+import { IncomingDialog, TransferDialog } from './components/TransferDialog'
 import { ProfileEditor } from './components/ProfileEditor'
 import { EventDialog, type Notes } from './components/EventDialog'
 import { CustomEventEditor } from './components/CustomEventEditor'
@@ -23,7 +25,7 @@ type Dialog =
   | { kind: 'courses'; profileId: string }
   | { kind: 'changes' }
   | { kind: 'people' }
-  | { kind: 'data' }
+  | { kind: 'transfer' }
   | null
 
 const NEW_PROFILE = (isMe: boolean, n: number): Profile => ({
@@ -51,6 +53,23 @@ export default function App() {
   const [seenChanges, setSeenChanges] = useStored<string>('seenChanges', '')
   const [viewId, setViewId] = useStored<string>('view', '')
   const [compareId, setCompareId] = useStored<string>('compare', '')
+  // Nastavitvi te naprave (se ne prenašata na druge naprave)
+  const [theme, setTheme] = useStored<'auto' | 'light' | 'dark'>('theme', 'auto')
+  const [mobileView, setMobileView] = useStored<'day' | 'week'>('mobileView', 'day')
+  const [incoming, setIncoming] = useState(sharedInHash)
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'auto') delete root.dataset.theme
+    else root.dataset.theme = theme
+  }, [theme])
+  // Povezava z nastavitvami, odprta v že odprtem zavihku
+  useEffect(() => {
+    const on = () => { const h = sharedInHash(); if (h) setIncoming(h) }
+    window.addEventListener('hashchange', on)
+    return () => window.removeEventListener('hashchange', on)
+  }, [])
+  const cycleTheme = () => setTheme(theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto')
 
   const [faculties, setFaculties] = useState<Faculty[]>([])
   const [updatedAt, setUpdatedAt] = useState('')
@@ -97,8 +116,8 @@ export default function App() {
 
   // Prvi zagon: vprašaj po lastnem urniku
   useEffect(() => {
-    if (!me && faculties.length && !dialog) setDialog({ kind: 'profile', profile: NEW_PROFILE(true, 0), isNew: true })
-  }, [me, faculties, dialog])
+    if (!me && faculties.length && !dialog && !incoming) setDialog({ kind: 'profile', profile: NEW_PROFILE(true, 0), isNew: true })
+  }, [me, faculties, dialog, incoming])
 
   // --- spremembe, ki me zadevajo ---
   const myChanges = useMemo(() => {
@@ -159,7 +178,9 @@ export default function App() {
   let days = datesOfWeek(week)
   const hasWeekend = (d: string) => [...viewedEvents, ...comparedEvents].some((e) => e.start.startsWith(d))
   days = days.filter((d) => !isWeekend(d) || hasWeekend(d))
-  if (narrow) days = [days.includes(day) ? day : days[0]]
+  const dayMode = narrow && mobileView === 'day'
+  const compact = narrow && mobileView === 'week'
+  if (dayMode) days = [days.includes(day) ? day : days[0]]
 
   const lanes: Lane[] = []
   if (viewed) lanes.push({ id: viewed.id, label: viewed.name, color: viewed.color, events: viewedEvents.filter((e) => e.changed !== 'del' || !compared) })
@@ -168,8 +189,8 @@ export default function App() {
   // --- primerjava ---
   const compare = useMemo(() => {
     if (!compared || !viewed) return null
-    const a = viewedEvents.filter((e) => e.changed !== 'del')
-    const b = comparedEvents.filter((e) => e.changed !== 'del')
+    const a = viewedEvents.filter((e) => e.changed !== 'del' && !isOutside(e))
+    const b = comparedEvents.filter((e) => e.changed !== 'del' && !isOutside(e))
     const segments: Record<string, Segment[]> = {}
     const summary: { day: string; free: Segment[]; shared: CalEvent[] }[] = []
     const shared = new Set(a.filter((e) => e.source === 'wise' && b.some((x) => x.key === e.key)).map((e) => e.key))
@@ -215,7 +236,7 @@ export default function App() {
   }
 
   const go = (n: number) => {
-    if (narrow) {
+    if (dayMode) {
       const d = addDays(day, n)
       setDay(d)
       setWeek(weekStart(d))
@@ -239,10 +260,13 @@ export default function App() {
           <button className="icon-btn" onClick={() => go(-1)} aria-label="Nazaj">‹</button>
           <button className="btn btn-small" onClick={goToday}>Danes</button>
           <button className="icon-btn" onClick={() => go(1)} aria-label="Naprej">›</button>
-          <span className="week-label">{weekLabel(week)}</span>
+          <span className="week-label">{weekLabel(week).replace(/ (\d{4})$/, '')}<span className="yr"> {week.slice(0, 4)}</span></span>
         </nav>
 
         <div className="top-actions">
+          <button className="icon-btn" onClick={cycleTheme} aria-label="Tema" title={`Tema: ${THEME_LABEL[theme]}`}>
+            {theme === 'auto' ? '◐' : theme === 'light' ? '☀️' : '🌙'}
+          </button>
           <button className="icon-btn bell" onClick={openChanges} aria-label="Spremembe urnika" title="Spremembe urnika">
             🔔{unseen.length > 0 && <span className="badge">{unseen.length}</span>}
           </button>
@@ -252,7 +276,8 @@ export default function App() {
               <button onClick={() => setDialog({ kind: 'people' })}>👥 Jaz in prijatelji</button>
               {viewed && <button onClick={() => setDialog({ kind: 'courses', profileId: viewed.id })}>📚 Predmeti ({viewed.name})</button>}
               {me && <button onClick={() => setDialog({ kind: 'custom', ev: newCustom(), isNew: true })}>➕ Lasten dogodek</button>}
-              <button onClick={() => setDialog({ kind: 'data' })}>💾 Varnostna kopija</button>
+              <button onClick={() => setDialog({ kind: 'transfer' })}>📲 Prenos na drugo napravo</button>
+              <button onClick={cycleTheme}>{theme === 'auto' ? '◐' : theme === 'light' ? '☀️' : '🌙'} Tema: {THEME_LABEL[theme]}</button>
             </div>
           </details>
         </div>
@@ -286,6 +311,13 @@ export default function App() {
       </section>
 
       {narrow && (
+        <div className="view-switch" role="tablist">
+          <button className={mobileView === 'day' ? 'is-on' : ''} onClick={() => setMobileView('day')}>Dan</button>
+          <button className={mobileView === 'week' ? 'is-on' : ''} onClick={() => setMobileView('week')}>Teden</button>
+        </div>
+      )}
+
+      {dayMode && (
         <div className="day-strip">
           {datesOfWeek(week).filter((d) => !isWeekend(d) || hasWeekend(d)).map((d) => (
             <button key={d} className={`${d === days[0] ? 'is-on' : ''} ${d === today() ? 'is-today' : ''}`} onClick={() => setDay(d)}>
@@ -313,6 +345,8 @@ export default function App() {
             lanes={lanes}
             segments={compare?.segments}
             shared={compare?.shared}
+            compact={compact}
+            onDayClick={(d) => { setDay(d); setMobileView('day') }}
             hasNote={(ev) => !!(notes.byUid[ev.key] || (ev.source === 'wise' && notes.byCourse[ev.title]))}
             onEventClick={(ev, laneId) => setDialog({ kind: 'event', ev, laneId })}
             onSlotClick={isMineView && !compared ? (d, m) => setDialog({ kind: 'custom', ev: newCustom(d, m), isNew: true }) : undefined}
@@ -328,7 +362,6 @@ export default function App() {
               <span className="lg lg-free">oba prosta</span>
               <span className="lg lg-a" style={{ ['--c' as string]: viewed.color }}>samo {viewed.name}</span>
               <span className="lg lg-b" style={{ ['--c' as string]: compared.color }}>samo {compared.name}</span>
-              <span className="lg lg-both">oba zasedena</span>
             </div>
             <ul>
               {compare.summary.map((s) => (
@@ -449,50 +482,12 @@ export default function App() {
         />
       )}
 
-      {dialog?.kind === 'data' && <DataDialog onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'transfer' && <TransferDialog onClose={() => setDialog(null)} />}
+      {incoming && <IncomingDialog hash={incoming} onDone={() => { clearHash(); setIncoming('') }} />}
     </div>
   )
 }
 
+const THEME_LABEL = { auto: 'kot sistem', light: 'svetla', dark: 'temna' } as const
 const DOW = ['ned', 'pon', 'tor', 'sre', 'čet', 'pet', 'sob']
 const fmt = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
-
-function DataDialog({ onClose }: { onClose: () => void }) {
-  const [msg, setMsg] = useState('')
-  const download = () => {
-    const blob = new Blob([exportAll()], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `um-urnik-${today()}.json`
-    a.click()
-    URL.revokeObjectURL(a.href)
-  }
-  const upload = (file: File) => {
-    file.text().then((t) => {
-      try {
-        importAll(t)
-        setMsg('Uvoženo. Stran se bo osvežila …')
-        setTimeout(() => location.reload(), 600)
-      } catch (e) {
-        setMsg((e as Error).message)
-      }
-    })
-  }
-  return (
-    <Modal title="Varnostna kopija" onClose={onClose}>
-      <p className="muted">
-        Vse (osebe, skriti predmeti, lastni dogodki in opombe) je shranjeno samo v tem brskalniku.
-        Izvozi datoteko, da jo preneseš na drug telefon ali računalnik.
-      </p>
-      <div className="row">
-        <button className="btn btn-primary" onClick={download}>Izvozi</button>
-        <label className="btn">
-          Uvozi …
-          <input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-        </label>
-      </div>
-      {msg && <p>{msg}</p>}
-    </Modal>
-  )
-}
-

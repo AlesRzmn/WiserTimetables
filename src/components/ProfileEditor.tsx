@@ -77,7 +77,7 @@ export function ProfileEditor({ initial, faculties, isNew, onSave, onDelete, onC
       <div className="form-grid">
         <label className="field">
           <span>Ime</span>
-          <input value={p.name} onChange={(e) => set({ name: e.target.value })} placeholder={p.isMe ? 'Jaz' : 'npr. Nejc'} autoFocus />
+          <input value={p.name} onChange={(e) => set({ name: e.target.value })} placeholder="Ime" autoFocus />
         </label>
         <div className="field">
           <span>Barva</span>

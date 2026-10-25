@@ -13,18 +13,20 @@
     "lint": "oxlint"
   },
   "dependencies": {
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "linkedom": "^0.18.14",
     "oxlint": "^1.88.0",
     "typescript": "~6.0.3",
-    "vite": "^8.3.4",
-    "linkedom": "^0.18.14"
+    "vite": "^8.3.4"
   },
   "engines": {
     "node": ">=20"

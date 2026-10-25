@@ -24,8 +24,9 @@
   background: var(--bg);
 }
 
+/* Temna tema: po sistemu (če ni izbrana svetla) ali ročno izbrana */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #111317;
     --panel: #1a1d23;
     --text: #e8eaee;
@@ -41,8 +42,28 @@
     --ev-l-bd: 60%;
     --ev-text-l: 88%;
     color-scheme: dark;
+  
   }
 }
+:root[data-theme="dark"] {
+    --bg: #111317;
+  --panel: #1a1d23;
+  --text: #e8eaee;
+  --muted: #98a0ad;
+  --line: #2a2e36;
+  --line-strong: #3a3f49;
+  --accent: #5b8cff;
+  --danger: #ef6b6b;
+  --ok: #3cc58c;
+  --free: #3cc58c;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --ev-l: 22%;
+  --ev-l-bd: 60%;
+  --ev-text-l: 88%;
+  color-scheme: dark;
+  
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); }
@@ -208,7 +229,6 @@ summary.icon-btn::-webkit-details-marker { display: none; }
 /* primerjava: ozadje dneva */
 .seg { position: absolute; left: 0; right: 0; pointer-events: none; }
 .seg-free { background: color-mix(in srgb, var(--free) 12%, transparent); }
-.seg-both { background: repeating-linear-gradient(-45deg, transparent 0 6px, color-mix(in srgb, var(--muted) 10%, transparent) 6px 12px); }
 .seg-label {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   font-size: 11px; font-weight: 600; color: var(--free); white-space: nowrap; opacity: 0.9;
@@ -226,7 +246,6 @@ summary.icon-btn::-webkit-details-marker { display: none; }
 .lg::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px; border: 1px solid var(--line-strong); }
 .lg-free::before { background: color-mix(in srgb, var(--free) 25%, transparent); }
 .lg-a::before, .lg-b::before { background: var(--c); }
-.lg-both::before { background: repeating-linear-gradient(-45deg, transparent 0 3px, var(--line-strong) 3px 6px); }
 
 .foot { padding: 12px 16px 20px; text-align: center; }
 
@@ -321,3 +340,46 @@ summary.icon-btn::-webkit-details-marker { display: none; }
   .day-head { padding: 4px 6px; }
   .is-compare .day-head > span { display: none; }
 }
+
+/* ---------------- termini zunaj okna 7–20 ---------------- */
+.outside { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-top: 4px; }
+.outside-ev {
+  font-size: 11px; font-weight: 500; border: 1px dashed var(--line-strong); background: transparent;
+  color: var(--muted); border-radius: 5px; padding: 0 5px; cursor: pointer; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------------- preklop dan/teden (telefon) ---------------- */
+.view-switch {
+  display: flex; margin: 0 12px 8px; padding: 3px; gap: 3px; border-radius: 9px;
+  background: var(--line); width: fit-content;
+}
+.view-switch button {
+  border: 0; background: transparent; padding: 4px 16px; border-radius: 7px; cursor: pointer; color: var(--muted);
+}
+.view-switch button.is-on { background: var(--panel); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+/* ---------------- kompakten teden ---------------- */
+.week.is-compact { --gutter: 22px; }
+.is-compact .day-head { padding: 4px 1px; font-weight: 500; }
+.day-head-btn { border: 0; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; width: 100%; font-size: 11px; color: var(--muted); padding: 0; }
+.day-head-btn b { font-size: 15px; color: var(--text); }
+.is-today .day-head-btn b { color: var(--accent); }
+.is-compact .hour-label { font-size: 10px; right: 3px; }
+.is-compact .ev { font-size: 9.5px; padding: 2px 3px; border-radius: 4px; border-left-width: 2px; line-height: 1.15; }
+.is-compact .ev-title { font-weight: 600; -webkit-line-clamp: 4; overflow-wrap: anywhere; }
+.is-compact .ev-short { flex-direction: column; gap: 0; align-items: stretch; }
+.is-compact .ev-short .ev-meta { display: none; }
+.is-compact .ev-type { font-weight: 500; }
+.is-compact .outside-ev { font-size: 9px; padding: 0 2px; }
+
+@media (max-width: 760px) {
+  .brand { display: none; }
+  .topbar { gap: 2px; padding: 6px 6px 6px 8px; }
+  .weeknav { justify-content: flex-start; gap: 0; }
+  .weeknav .btn-small { padding: 4px 8px; }
+  .week-label .yr { display: none; }
+  .top-actions { gap: 0; }
+  .top-actions .icon-btn { width: 34px; }
+}
+html, body { overflow-x: hidden; }

@@ -6,13 +6,16 @@ brez strežnika in brez prijave.
 
 **Funkcije**
 
-- tedenski pogled (na telefonu dnevni), temni način, namestljiv kot aplikacija
+- tedenski ali dnevni pogled (na telefonu izbiraš sam), enotno okno 7:00–20:00 za vse fakultete
+  (termini zunaj okna, npr. Wisove »Rezervacije«, so značke v glavi dneva), urnik se prilagodi višini zaslona
+- svetla/temna tema po izbiri (nastavitev velja za vsako napravo posebej), namestljiv kot aplikacija
 - **filter predmetov**: skrij predmete ali posamezne izvedbe (npr. tuj jezik, ki ga ne obiskuješ)
 - **obvestila o spremembah**: odpadla, prestavljena in nova predavanja so označena v koledarju in zbrana pod 🔔
 - **lastni dogodki** (tudi tedensko ponavljajoči) in **opombe** k terminu ali celemu predmetu
 - **prijatelji**: ročno dodaš ime, fakulteto, program in skupino; nihče ne rabi računa
 - **primerjava s prijateljem**: zeleno so ure, ko sta oba prosta, z oznako skupnih predavanj in seznamom lukenj po dnevih
-- izvoz/uvoz vseh nastavitev (za prenos na drug telefon)
+- **prenos na drugo napravo**: QR koda ali povezava z vsemi urniki, prijatelji, skritimi predmeti,
+  lastnimi dogodki in opombami (podatki so v delu povezave za `#`, zato ne gredo na noben strežnik); ali izvoz v datoteko
 
 Vse osebne nastavitve so shranjene samo v brskalniku (localStorage).
 
