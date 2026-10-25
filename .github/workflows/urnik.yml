@@ -1,0 +1,66 @@
+name: Osveži urnik in objavi
+
+on:
+  schedule:
+    # Vsake 3 ure (čas je v UTC). Objavi se le, če branje uspe.
+    - cron: '17 */3 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      catalog:
+        description: 'Na novo preberi tudi programe in skupine'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      # Prebere urnike vseh fakultet. Prejšnje stanje vzame z že objavljene strani,
+      # tako zazna spremembe brez shranjevanja podatkov v repozitorij.
+      - name: Preberi Wise Timetable
+        run: npm run scrape
+        env:
+          PREV_DATA_URL: ${{ steps.pages.outputs.base_url }}/data
+          CATALOG_MAX_AGE_H: ${{ inputs.catalog && '0' || '20' }}
+          FACULTIES: ${{ vars.FACULTIES }}
+
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

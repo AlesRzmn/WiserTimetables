@@ -1,0 +1,32 @@
+{
+  "name": "um-urnik",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "scrape": "node scraper/run.mjs",
+    "mock": "node scripts/mock-data.mjs",
+    "test": "node --test scraper/core.test.mjs",
+    "lint": "oxlint"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.88.0",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4",
+    "linkedom": "^0.18.14"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
