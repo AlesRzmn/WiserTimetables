@@ -23,13 +23,13 @@ Vse osebne nastavitve so shranjene samo v brskalniku (localStorage).
    git init -b main
    git add .
    git commit -m "UM urnik"
-   git remote add origin https://github.com/<tvoje-ime>/um-urnik.git
+   git remote add origin https://github.com/AlesRzmn/WiserTimetables.git
    git push -u origin main
    ```
 2. V repozitoriju odpri **Settings → Pages** in pri *Source* izberi **GitHub Actions**.
 3. Odpri zavihek **Actions → Osveži urnik in objavi → Run workflow** (ali počakaj na push).
    Prvi zagon traja nekaj minut (prebere programe in skupine vseh fakultet).
-4. Aplikacija bo na `https://<tvoje-ime>.github.io/um-urnik/`.
+4. Aplikacija bo na `https://alesrzmn.github.io/WiserTimetables/`.
 
 Action se nato sam zažene vsake 3 ure. Spremembe urnika se začnejo beležiti od drugega zagona naprej.
 
