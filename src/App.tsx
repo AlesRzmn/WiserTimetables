@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CalEvent, Change, CustomEvent, Faculty, Profile } from './lib/types'
 import {
-  busyOnDay, compareDay, courseKey, datesOfWeek, expandCustom, isHidden, isWeekend, loadFaculties,
+  busyOnDay, clearDataCache, compareDay, courseKey, datesOfWeek, expandCustom, isHidden, isWeekend, loadFaculties,
   loadProfileData, toCal, type ProfileData, type Segment,
 } from './lib/data'
 import { addDays, nowLocal, parseDate, relTime, today, weekLabel, weekStart } from './lib/time'
@@ -97,10 +97,34 @@ export default function App() {
   const compared = profiles.find((p) => p.id === compareId && p.id !== viewed?.id)
 
   // --- nalaganje podatkov ---
+  // reloadTick se poveča, ko je treba podatke prenesti znova (zavihek je bil dolgo odprt).
+  const [reloadTick, setReloadTick] = useState(0)
   useEffect(() => {
     loadFaculties()
-      .then((f) => { setFaculties(f.faculties); setUpdatedAt(f.updatedAt) })
+      .then((f) => { setFaculties(f.faculties); setUpdatedAt(f.updatedAt); setLoadError('') })
       .catch((e) => setLoadError(`Podatkov o urnikih ni bilo mogoče naložiti (${e.message}).`))
+  }, [reloadTick])
+
+  // Telefon zavihek drži odprt več dni: ob vrnitvi v aplikacijo (in vsakih 15 min)
+  // preveri, ali so na strežniku novejši podatki.
+  useEffect(() => {
+    let loadedAt = Date.now()
+    const refresh = () => {
+      if (Date.now() - loadedAt < 15 * 60e3) return
+      loadedAt = Date.now()
+      clearDataCache()
+      setData({})
+      setReloadTick((t) => t + 1)
+    }
+    const onVisible = () => document.visibilityState === 'visible' && refresh()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', refresh)
+    const t = setInterval(refresh, 5 * 60e3)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', refresh)
+      clearInterval(t)
+    }
   }, [])
 
   useEffect(() => {

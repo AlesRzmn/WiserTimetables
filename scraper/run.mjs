@@ -139,6 +139,8 @@ for (const key of keys) {
     ok++
   } catch (e) {
     console.warn(`  ✗ ${e.message}`)
+    // Opozorilo se pokaže na strani zagona v GitHub Actions
+    console.log(`::warning title=${key.toUpperCase()} ni osvežen::${e.message.replace(/\n/g, ' ')}`)
     const prevEntry = prevMeta?.faculties?.find((f) => f.key === key)
     const kept = await keepPrevious(key, prevEntry)
     if (kept) faculties.push({ ...kept, error: e.message })
@@ -146,4 +148,6 @@ for (const key of keys) {
 }
 await writeJson('faculties.json', { updatedAt: new Date().toISOString(), faculties })
 console.log(`Končano: ${ok}/${keys.length} fakultet osveženih.`)
+const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : f.events + ' dogodkov'}`).join(' | ')
+console.log(`::notice title=Osveženih ${ok}/${keys.length}::${summary}`)
 if (!faculties.length) process.exit(1)

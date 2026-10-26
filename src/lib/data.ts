@@ -16,6 +16,12 @@ function getJson<T>(path: string): Promise<T> {
   return cache.get(path) as Promise<T>
 }
 
+/** Pozabi naložene podatke, da se ob naslednjem branju prenesejo sveži. */
+export function clearDataCache() {
+  cache.clear()
+  unpacked.clear()
+}
+
 export const loadFaculties = () => getJson<FacultiesFile>('faculties.json')
 export const loadCatalog = (faculty: string) => getJson<Catalog>(`${faculty}/catalog.json`)
 export const loadChanges = (faculty: string) =>
