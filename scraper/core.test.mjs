@@ -113,3 +113,22 @@ test('spremembe: odpadlo, novo, prestavljeno; preteklost se ignorira', () => {
   assert.deepEqual(byUid.moved.fields, ['start', 'end', 'rooms'])
   assert.ok(!byUid.past)
 })
+
+test('prevelik paket: Wise vrne delne podatke → bralnik zmanjša pakete', async () => {
+  // 60 skupin, vsaka ima svoj termin; nad 10 skupin v zahtevi Wise vrne le prvo (strožje od prave meje, da preverimo zmanjševanje)
+  const groups = Array.from({ length: 60 }, (_, i) => ({ id: String(i + 1), name: `G${i + 1}`, parent: null }))
+  const ev = (id) => ['BEGIN:VEVENT', `UID:${id}@x`, 'DTSTART;TZID=Europe/Ljubljana:20261103T080000',
+    'DTEND;TZID=Europe/Ljubljana:20261103T090000', 'SUMMARY:P (PR)', `DESCRIPTION:Skupine: G${id}`, 'END:VEVENT']
+  let requests = 0
+  const fake = {
+    fetchText: async (url) => {
+      requests++
+      const ids = new URL(url).searchParams.get('g').split('_')
+      const shown = ids.length > 10 ? ids.slice(0, 1) : ids
+      return ['BEGIN:VCALENDAR', ...shown.flatMap(ev), 'END:VCALENDAR'].join('\r\n')
+    },
+  }
+  const all = await fetchEvents('x', { groups }, fake)
+  assert.equal(all.length, 60)
+  assert.ok(requests < 40, `preveč zahtev: ${requests}`)
+})

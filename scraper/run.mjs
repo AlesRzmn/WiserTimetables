@@ -88,7 +88,7 @@ async function scrapeFaculty(key, prevMeta) {
 
   // --- dogodki ---
   console.log(`  dogodki za ${catalog.groups.length} skupin …`)
-  const events = await fetchEvents(code, catalog, ctx)
+  const events = await fetchEvents(code, catalog, { ...ctx, log: console.log })
   const keepFrom = localNow(-30) // starejših dogodkov aplikacija ne rabi
   const kept = events.filter((e) => e.end >= keepFrom)
 

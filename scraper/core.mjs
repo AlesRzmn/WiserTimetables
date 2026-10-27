@@ -27,7 +27,8 @@ export const FACULTIES = {
   ag: 'Akademija za glasbo',
 }
 
-const GROUP_BATCH = 250 // Wise zavrne predolge naslove, zato skupine pošiljamo v paketih
+// Wise pri več kot 30 skupinah v eni zahtevi vrne nepopolne podatke (preverjeno 27. 10. 2026)
+const GROUP_BATCH = 25
 
 const clean = (s) => (s || '').replace(/\s+/g, ' ').trim()
 
@@ -251,18 +252,40 @@ export function parseIcs(text, known) {
 }
 
 /** Vsi dogodki za podane skupine (v paketih), brez podvojitev. */
-export async function fetchEvents(code, catalog, { fetchText, delay = () => Promise.resolve() }) {
-  const groupIds = catalog.groups.map((g) => g.id)
-  const known = knownGroupNames(catalog.groups)
+async function fetchBatched(code, groupIds, known, batch, { fetchText, delay }) {
   const byUid = new Map()
-  for (let i = 0; i < groupIds.length; i += GROUP_BATCH) {
-    const ids = groupIds.slice(i, i + GROUP_BATCH).join('_')
+  for (let i = 0; i < groupIds.length; i += batch) {
+    const ids = groupIds.slice(i, i + batch).join('_')
     await delay()
     const text = await fetchText(`${BASE}/web/${code}/reports?g=${ids}&lang=sl&format=ics`)
     if (!text.includes('BEGIN:VCALENDAR')) throw new Error(`Wise ni vrnil iCal za ${code}`)
     for (const ev of parseIcs(text, known)) byUid.set(ev.uid, ev)
   }
-  return [...byUid.values()].sort((a, b) => a.start.localeCompare(b.start))
+  return byUid
+}
+
+/**
+ * Vsi dogodki fakultete. Wise od oktobra 2026 pri več kot 30 skupinah v eni
+ * zahtevi tiho vrne le del terminov, zato beremo v paketih in rezultat
+ * preverimo: nekaj naključnih skupin preberemo še posamično in vsak njihov
+ * termin mora biti v skupnem rezultatu. Če ni, se paketi zmanjšajo.
+ */
+export async function fetchEvents(code, catalog, { fetchText, delay = () => Promise.resolve(), log = () => {} }) {
+  const groupIds = catalog.groups.map((g) => g.id)
+  const known = knownGroupNames(catalog.groups)
+  const ctx = { fetchText, delay }
+  const sample = [...groupIds].sort(() => Math.random() - 0.5).slice(0, 4)
+  for (let batch = GROUP_BATCH; ; batch = Math.max(1, Math.floor(batch / 2))) {
+    const byUid = await fetchBatched(code, groupIds, known, batch, ctx)
+    let missing = 0
+    for (const id of sample) {
+      const single = await fetchBatched(code, [id], known, 1, ctx)
+      for (const uid of single.keys()) if (!byUid.has(uid)) missing++
+    }
+    if (!missing) return [...byUid.values()].sort((a, b) => a.start.localeCompare(b.start))
+    if (batch === 1) throw new Error(`Wise vrača nepopolne podatke (${missing} manjkajočih terminov)`)
+    log(`  paket ${batch} skupin je nepopoln (${missing} manjkajočih), poskusim manjše`)
+  }
 }
 
 // ---------------------------------------------------------------------------
