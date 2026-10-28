@@ -14,6 +14,7 @@ import { parseHTML as linkedomParse } from 'linkedom'
 import {
   FACULTIES, resolveSchoolCode, fetchCatalog, fetchEvents, packEvents, unpackEvents, diffEvents,
 } from './core.mjs'
+import { CUSTOM_FACULTIES } from './custom-faculties.mjs'
 
 const OUT_DIR = process.env.OUT_DIR || 'public/data'
 const PREV = (process.env.PREV_DATA_URL || '').replace(/\/$/, '')
@@ -129,7 +130,7 @@ async function keepPrevious(key, prevEntry) {
 }
 
 const prevMeta = await fetchPrevJson('faculties.json')
-const keys = ONLY.length ? ONLY : Object.keys(FACULTIES)
+const keys = (ONLY.length ? ONLY : Object.keys(FACULTIES)).filter((k) => k in FACULTIES)
 const faculties = []
 let ok = 0
 for (const key of keys) {
@@ -146,6 +147,17 @@ for (const key of keys) {
     if (kept) faculties.push({ ...kept, error: e.message })
   }
 }
+// Izmišljene fakultete (niso na Wise)
+for (const f of CUSTOM_FACULTIES) {
+  if (ONLY.length && !ONLY.includes(f.key)) continue
+  const now = new Date().toISOString()
+  const events = f.events()
+  await writeJson(`${f.key}/catalog.json`, { ...f.catalog, fetchedAt: now })
+  await writeJson(`${f.key}/events.json`, { fetchedAt: now, ...packEvents(events) })
+  await writeJson(`${f.key}/changes.json`, { changes: [] })
+  faculties.push({ key: f.key, code: f.key, name: f.name, groups: f.catalog.groups.length, events: events.length, eventsAt: now, catalogAt: now })
+}
+
 await writeJson('faculties.json', { updatedAt: new Date().toISOString(), faculties })
 console.log(`Končano: ${ok}/${keys.length} fakultet osveženih.`)
 const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : f.events + ' dogodkov'}`).join(' | ')

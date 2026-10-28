@@ -6,25 +6,22 @@
 export const BASE = 'https://www.wise-tt.com'
 
 // Kratice fakultet UM. Koda na Wise strežniku se poišče samodejno.
+// Brez PEF in FKKT (urnik po predmetih, ne po skupinah) ter FOV in AG (nimata javnega urnika na Wise).
 export const FACULTIES = {
   fs: 'Fakulteta za strojništvo',
   feri: 'Fakulteta za elektrotehniko, računalništvo in informatiko',
   epf: 'Ekonomsko-poslovna fakulteta',
   fgpa: 'Fakulteta za gradbeništvo, prometno inženirstvo in arhitekturo',
-  fkkt: 'Fakulteta za kemijo in kemijsko tehnologijo',
   fkbv: 'Fakulteta za kmetijstvo in biosistemske vede',
   fl: 'Fakulteta za logistiko',
   fnm: 'Fakulteta za naravoslovje in matematiko',
-  fov: 'Fakulteta za organizacijske vede',
   ft: 'Fakulteta za turizem',
   fvv: 'Fakulteta za varnostne vede',
   fzv: 'Fakulteta za zdravstvene vede',
   ff: 'Filozofska fakulteta',
   mf: 'Medicinska fakulteta',
-  pef: 'Pedagoška fakulteta',
   pf: 'Pravna fakulteta',
   fe: 'Fakulteta za energetiko',
-  ag: 'Akademija za glasbo',
 }
 
 // Wise pri več kot 30 skupinah v eni zahtevi vrne nepopolne podatke (preverjeno 27. 10. 2026)

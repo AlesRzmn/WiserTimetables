@@ -55,7 +55,7 @@ function layout(events: CalEvent[]) {
 
 /** Termin je v celoti zunaj okna (npr. Wisove »Rezervacije« ob 20:50) ali čez ves dan. */
 export const isOutside = (e: CalEvent) =>
-  minutes(e.start) >= DAY_TO || minutes(e.end) <= DAY_FROM || minutes(e.end) - minutes(e.start) >= 10 * 60
+  minutes(e.start) >= DAY_TO || minutes(e.end) <= DAY_FROM || minutes(e.end) - minutes(e.start) >= 14 * 60
     || e.end.slice(0, 10) !== e.start.slice(0, 10)
 
 function useViewportHeight() {
