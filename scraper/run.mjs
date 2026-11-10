@@ -169,6 +169,6 @@ for (const f of CUSTOM_FACULTIES) {
 
 await writeJson('faculties.json', { updatedAt: new Date().toISOString(), faculties })
 console.log(`Končano: ${ok}/${keys.length} fakultet osveženih.`)
-const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : `${f.events} dogodkov, ${f.changes ?? 0} sprememb${f.cleaned ? ` (počiščenih ${f.cleaned})` : ''}; novo: ${f.freshInfo}`}`).join(' | ')
+const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : `${f.events} dogodkov, ${f.changes ?? 0} sprememb${f.cleaned ? ` (počiščenih ${f.cleaned})` : ''}${f.freshInfo ? `; novo: ${f.freshInfo}` : ''}`}`).join(' | ')
 console.log(`::notice title=Osveženih ${ok}/${keys.length}::${summary}`)
 if (!faculties.length) process.exit(1)
