@@ -94,10 +94,13 @@ async function scrapeFaculty(key, prevMeta) {
   const kept = events.filter((e) => e.end >= keepFrom)
 
   // --- primerjava s prejšnjim stanjem ---
+  let freshInfo = 'brez primerjave'
   const prevPacked = await fetchPrevJson(`${key}/events.json`)
   const prevChanges = (await fetchPrevJson(`${key}/changes.json`)) || { changes: [] }
-  const before = prevChanges.changes.length
-  let changes = cleanChanges(prevChanges.changes, kept)
+  // Zgodovina pred različico 2 je polna lažnih sprememb (zaznava po UID-ju) → začnemo na novo.
+  const prevList = prevChanges.version === 2 ? prevChanges.changes : []
+  const before = prevList.length
+  let changes = cleanChanges(prevList, kept)
   const cleaned = before - changes.length
   if (prevPacked) {
     const prevEvents = unpackEvents(prevPacked).filter((e) => e.end >= keepFrom)
@@ -106,6 +109,10 @@ async function scrapeFaculty(key, prevMeta) {
       throw new Error(`sumljivo malo dogodkov (${kept.length} namesto ~${prevEvents.length}), ohranjam prejšnje`)
     }
     const fresh = diffEvents(prevEvents, kept, { at: now, fromLocal: localNow(0) })
+    freshInfo = ['add', 'del', 'mod'].map((k) => `${k} ${fresh.filter((c) => c.kind === k).length}`).join(', ')
+    const modFields = {}
+    fresh.filter((c) => c.kind === 'mod').forEach((c) => c.fields.forEach((f) => { modFields[f] = (modFields[f] || 0) + 1 }))
+    if (Object.keys(modFields).length) freshInfo += ` [${Object.entries(modFields).map(([f, n]) => `${f}:${n}`).join(' ')}]`
     console.log(`  spremembe: ${fresh.length}`)
     changes = [...changes, ...fresh]
   }
@@ -114,10 +121,10 @@ async function scrapeFaculty(key, prevMeta) {
 
   await writeJson(`${key}/catalog.json`, catalog)
   await writeJson(`${key}/events.json`, { fetchedAt: now, ...packEvents(kept) })
-  await writeJson(`${key}/changes.json`, { changes })
+  await writeJson(`${key}/changes.json`, { version: 2, changes })
   return {
     key, code, name: FACULTIES[key], groups: catalog.groups.length, events: kept.length,
-    eventsAt: now, catalogAt: catalog.fetchedAt, changes: changes.length, cleaned,
+    eventsAt: now, catalogAt: catalog.fetchedAt, changes: changes.length, cleaned, freshInfo,
   }
 }
 
@@ -162,6 +169,6 @@ for (const f of CUSTOM_FACULTIES) {
 
 await writeJson('faculties.json', { updatedAt: new Date().toISOString(), faculties })
 console.log(`Končano: ${ok}/${keys.length} fakultet osveženih.`)
-const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : `${f.events} dogodkov, ${f.changes ?? 0} sprememb${f.cleaned ? ` (počiščenih ${f.cleaned})` : ''}`}`).join(' | ')
+const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : `${f.events} dogodkov, ${f.changes ?? 0} sprememb${f.cleaned ? ` (počiščenih ${f.cleaned})` : ''}; novo: ${f.freshInfo}`}`).join(' | ')
 console.log(`::notice title=Osveženih ${ok}/${keys.length}::${summary}`)
 if (!faculties.length) process.exit(1)
