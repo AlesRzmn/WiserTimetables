@@ -331,9 +331,22 @@ export function unpackEvents(packed) {
 const COMPARED = ['start', 'end', 'course', 'typeFull', 'rooms', 'lecturers', 'groups', 'note']
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
+/** Vsebina termina brez UID-ja (Wise UID-je ob ponovnem shranjevanju urnika zamenja). */
+export const contentKey = (e) => JSON.stringify(COMPARED.map((f) => e[f] ?? null))
+const slotKey = (e) => JSON.stringify([e.course, e.typeFull, e.groups, e.start.slice(0, 10)])
+
+/** Iz seznama vzame prvi element z enakim ključem (večkratna množica). */
+function takeMatch(list, key, fn) {
+  const i = list.findIndex((x) => fn(x) === key)
+  return i === -1 ? null : list.splice(i, 1)[0]
+}
+
 /**
  * Primerja staro in novo stanje. Upošteva le dogodke od `fromLocal` naprej,
  * da spremembe v preteklosti ne delajo šuma.
+ * Termini se najprej ujemajo po UID-ju, nato po vsebini: termin, ki je dobil
+ * nov UID, a je sicer enak, NI sprememba. Odpadel in nov termin istega predmeta,
+ * tipa in skupin na isti dan se združita v eno »spremembo« (npr. nova ura).
  * Vrne [{kind: 'add'|'del'|'mod', uid, at, ev, old?, fields?}]
  */
 export function diffEvents(oldEvents, newEvents, { at, fromLocal }) {
@@ -341,19 +354,44 @@ export function diffEvents(oldEvents, newEvents, { at, fromLocal }) {
   const newMap = new Map(newEvents.map((e) => [e.uid, e]))
   const relevant = (e) => e && e.end >= fromLocal
   const changes = []
+  const added = []
+  const removed = []
   for (const [uid, ev] of newMap) {
     const old = oldMap.get(uid)
-    if (!old) {
-      if (relevant(ev)) changes.push({ kind: 'add', uid, at, ev })
-      continue
-    }
+    if (!old) { added.push(ev); continue }
     const fields = COMPARED.filter((f) => !same(old[f], ev[f]))
     if (fields.length && (relevant(ev) || relevant(old))) changes.push({ kind: 'mod', uid, at, ev, old, fields })
   }
-  for (const [uid, old] of oldMap) {
-    if (!newMap.has(uid) && relevant(old)) changes.push({ kind: 'del', uid, at, ev: old })
+  for (const [uid, old] of oldMap) if (!newMap.has(uid)) removed.push(old)
+
+  // 1) enak termin z novim UID-jem → ni spremembe
+  const addRest = []
+  for (const ev of added) if (!takeMatch(removed, contentKey(ev), contentKey)) addRest.push(ev)
+  // 2) isti predmet/tip/skupine isti dan → sprememba (ura, prostor …)
+  const addFinal = []
+  for (const ev of addRest) {
+    const old = takeMatch(removed, slotKey(ev), slotKey)
+    if (!old) { addFinal.push(ev); continue }
+    const fields = COMPARED.filter((f) => !same(old[f], ev[f]))
+    if (relevant(ev) || relevant(old)) changes.push({ kind: 'mod', uid: ev.uid, at, ev, old, fields })
   }
+  for (const ev of addFinal) if (relevant(ev)) changes.push({ kind: 'add', uid: ev.uid, at, ev })
+  for (const old of removed) if (relevant(old)) changes.push({ kind: 'del', uid: old.uid, at, ev: old })
   return changes
+}
+
+/**
+ * Počisti zgodovino sprememb lažnih zapisov (iz časa, ko so se zaznavale po UID-ju):
+ * par »odpade« + »novo« z enako vsebino in »odpade« za termin, ki še obstaja.
+ */
+export function cleanChanges(changes, currentEvents) {
+  const current = new Set(currentEvents.map(contentKey))
+  const delKeys = new Set(changes.filter((c) => c.kind === 'del').map((c) => contentKey(c.ev)))
+  return changes.filter((c) => {
+    if (c.kind === 'add') return !delKeys.has(contentKey(c.ev))
+    if (c.kind === 'del') return !current.has(contentKey(c.ev))
+    return !(c.old && contentKey(c.old) === contentKey(c.ev))
+  })
 }
 
 /**

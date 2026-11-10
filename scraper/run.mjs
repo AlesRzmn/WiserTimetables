@@ -12,7 +12,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseHTML as linkedomParse } from 'linkedom'
 import {
-  FACULTIES, resolveSchoolCode, fetchCatalog, fetchEvents, packEvents, unpackEvents, diffEvents,
+  FACULTIES, resolveSchoolCode, fetchCatalog, fetchEvents, packEvents, unpackEvents, diffEvents, cleanChanges,
 } from './core.mjs'
 import { CUSTOM_FACULTIES } from './custom-faculties.mjs'
 
@@ -96,7 +96,9 @@ async function scrapeFaculty(key, prevMeta) {
   // --- primerjava s prejšnjim stanjem ---
   const prevPacked = await fetchPrevJson(`${key}/events.json`)
   const prevChanges = (await fetchPrevJson(`${key}/changes.json`)) || { changes: [] }
-  let changes = prevChanges.changes
+  const before = prevChanges.changes.length
+  let changes = cleanChanges(prevChanges.changes, kept)
+  const cleaned = before - changes.length
   if (prevPacked) {
     const prevEvents = unpackEvents(prevPacked).filter((e) => e.end >= keepFrom)
     // Varovalka: če Wise nenadoma vrne veliko manj dogodkov, je verjetno napaka na njihovi strani.
@@ -115,7 +117,7 @@ async function scrapeFaculty(key, prevMeta) {
   await writeJson(`${key}/changes.json`, { changes })
   return {
     key, code, name: FACULTIES[key], groups: catalog.groups.length, events: kept.length,
-    eventsAt: now, catalogAt: catalog.fetchedAt,
+    eventsAt: now, catalogAt: catalog.fetchedAt, changes: changes.length, cleaned,
   }
 }
 
@@ -160,6 +162,6 @@ for (const f of CUSTOM_FACULTIES) {
 
 await writeJson('faculties.json', { updatedAt: new Date().toISOString(), faculties })
 console.log(`Končano: ${ok}/${keys.length} fakultet osveženih.`)
-const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : f.events + ' dogodkov'}`).join(' | ')
+const summary = faculties.map((f) => `${f.key.toUpperCase()}: ${f.error ? 'NAPAKA – ' + f.error : `${f.events} dogodkov, ${f.changes ?? 0} sprememb${f.cleaned ? ` (počiščenih ${f.cleaned})` : ''}`}`).join(' | ')
 console.log(`::notice title=Osveženih ${ok}/${keys.length}::${summary}`)
 if (!faculties.length) process.exit(1)

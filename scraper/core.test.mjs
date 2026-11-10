@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { parseHTML } from 'linkedom'
 import {
   fetchCatalog, fetchEvents, parseIcs, splitSummary, splitGroups, knownGroupNames, groupScope,
-  diffEvents, packEvents, unpackEvents, icsTimeToLocal,
+  diffEvents, cleanChanges, packEvents, unpackEvents, icsTimeToLocal,
 } from './core.mjs'
 
 // Posnetek strukture javne Wise strani (poenostavljen)
@@ -131,4 +131,28 @@ test('prevelik paket: Wise vrne delne podatke → bralnik zmanjša pakete', asyn
   const all = await fetchEvents('x', { groups }, fake)
   assert.equal(all.length, 60)
   assert.ok(requests < 40, `preveč zahtev: ${requests}`)
+})
+
+test('nov UID za enak termin ni sprememba; premik na isti dan je »spremenjeno«', () => {
+  const base = { course: 'M', type: 'PR', typeFull: 'PR', rooms: ['A'], lecturers: [], groups: ['g'], note: '' }
+  const a = { ...base, uid: 'u1', start: '2026-11-20T08:00', end: '2026-11-20T09:00' }
+  const b = { ...base, uid: 'u2', start: '2026-11-21T08:00', end: '2026-11-21T09:00' }
+  const opts = { at: 'T', fromLocal: '2026-11-10T00:00' }
+  assert.deepEqual(diffEvents([a, b], [{ ...a, uid: 'x1' }, { ...b, uid: 'x2' }], opts), [])
+  const moved = diffEvents([a], [{ ...a, uid: 'x1', start: '2026-11-20T10:00', end: '2026-11-20T11:00' }], opts)
+  assert.equal(moved.length, 1)
+  assert.equal(moved[0].kind, 'mod')
+  assert.deepEqual(moved[0].fields, ['start', 'end'])
+})
+
+test('čiščenje zgodovine odstrani lažne pare odpade/novo', () => {
+  const base = { course: 'M', type: 'PR', typeFull: 'PR', rooms: ['A'], lecturers: [], groups: ['g'], note: '', start: '2026-11-20T08:00', end: '2026-11-20T09:00' }
+  const real = { ...base, uid: 'r', course: 'N' }
+  const hist = [
+    { kind: 'del', uid: 'u1', at: 'T', ev: { ...base, uid: 'u1' } },
+    { kind: 'add', uid: 'u2', at: 'T', ev: { ...base, uid: 'u2' } },
+    { kind: 'del', uid: 'r', at: 'T', ev: real },
+  ]
+  const left = cleanChanges(hist, [{ ...base, uid: 'u2' }])
+  assert.deepEqual(left.map((c) => c.uid), ['r'])
 })
