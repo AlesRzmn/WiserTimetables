@@ -12,7 +12,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseHTML as linkedomParse } from 'linkedom'
 import {
-  FACULTIES, resolveSchoolCode, fetchCatalog, fetchEvents, packEvents, unpackEvents, diffEvents, cleanChanges,
+  FACULTIES, resolveSchoolCode, fetchCatalog, fetchEvents, packEvents, unpackEvents, diffEvents, cleanChanges, massLimit,
 } from './core.mjs'
 import { CUSTOM_FACULTIES } from './custom-faculties.mjs'
 
@@ -114,7 +114,13 @@ async function scrapeFaculty(key, prevMeta) {
     fresh.filter((c) => c.kind === 'mod').forEach((c) => c.fields.forEach((f) => { modFields[f] = (modFields[f] || 0) + 1 }))
     if (Object.keys(modFields).length) freshInfo += ` [${Object.entries(modFields).map(([f, n]) => `${f}:${n}`).join(' ')}]`
     console.log(`  spremembe: ${fresh.length}`)
-    changes = [...changes, ...fresh]
+    if (fresh.length > massLimit(kept.length)) {
+      // Wise je spremenil obliko zapisa, ne urnika – ne beležimo kot spremembe
+      console.log(`::warning title=${key.toUpperCase()}: množična sprememba::${fresh.length} sprememb naenkrat (${freshInfo}) – verjetno sprememba zapisa pri Wise, ni zabeleženo`)
+      freshInfo += ' – ZAVRNJENO (množično)'
+    } else {
+      changes = [...changes, ...fresh]
+    }
   }
   const cutoff = new Date(Date.now() - CHANGES_KEEP_DAYS * 86400e3).toISOString()
   changes = changes.filter((c) => c.at >= cutoff).slice(-3000)

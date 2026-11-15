@@ -264,18 +264,20 @@ async function fetchBatched(code, groupIds, known, batch, { fetchText, delay }) 
 /**
  * Vsi dogodki fakultete. Wise od oktobra 2026 pri več kot 30 skupinah v eni
  * zahtevi tiho vrne le del terminov, zato beremo v paketih in rezultat
- * preverimo: nekaj naključnih skupin preberemo še posamično in vsak njihov
+ * preverimo: iz VSAKEGA paketa eno skupino preberemo še posamično in vsak njen
  * termin mora biti v skupnem rezultatu. Če ni, se paketi zmanjšajo.
  */
 export async function fetchEvents(code, catalog, { fetchText, delay = () => Promise.resolve(), log = () => {} }) {
   const groupIds = catalog.groups.map((g) => g.id)
   const known = knownGroupNames(catalog.groups)
   const ctx = { fetchText, delay }
-  const sample = [...groupIds].sort(() => Math.random() - 0.5).slice(0, 4)
   for (let batch = GROUP_BATCH; ; batch = Math.max(1, Math.floor(batch / 2))) {
     const byUid = await fetchBatched(code, groupIds, known, batch, ctx)
+    // po ena skupina iz vsakega paketa (zadnja – če paket odreže konec, jo zgrešimo prvo)
+    const sample = []
+    for (let i = 0; i < groupIds.length; i += batch) sample.push(groupIds[Math.min(i + batch, groupIds.length) - 1])
     let missing = 0
-    for (const id of sample) {
+    for (const id of batch === 1 ? [] : sample) {
       const single = await fetchBatched(code, [id], known, 1, ctx)
       for (const uid of single.keys()) if (!byUid.has(uid)) missing++
     }
@@ -381,10 +383,21 @@ export function diffEvents(oldEvents, newEvents, { at, fromLocal }) {
 }
 
 /**
+ * Koliko sprememb v enem branju je še verjetnih. Več pomeni, da je Wise
+ * spremenil obliko zapisa (npr. 11. 11. 2026 opis vseh terminov), ne urnika.
+ */
+export const massLimit = (eventCount) => Math.max(300, Math.round(eventCount * 0.1))
+
+/**
  * Počisti zgodovino sprememb lažnih zapisov (iz časa, ko so se zaznavale po UID-ju):
- * par »odpade« + »novo« z enako vsebino in »odpade« za termin, ki še obstaja.
+ * par »odpade« + »novo« z enako vsebino, »odpade« za termin, ki še obstaja,
+ * in množične spremembe iz enega branja (glej massLimit).
  */
 export function cleanChanges(changes, currentEvents) {
+  const perRun = {}
+  for (const c of changes) perRun[c.at] = (perRun[c.at] || 0) + 1
+  const limit = massLimit(currentEvents.length)
+  changes = changes.filter((c) => perRun[c.at] <= limit)
   const current = new Set(currentEvents.map(contentKey))
   const delKeys = new Set(changes.filter((c) => c.kind === 'del').map((c) => contentKey(c.ev)))
   return changes.filter((c) => {

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { parseHTML } from 'linkedom'
 import {
   fetchCatalog, fetchEvents, parseIcs, splitSummary, splitGroups, knownGroupNames, groupScope,
-  diffEvents, cleanChanges, packEvents, unpackEvents, icsTimeToLocal,
+  diffEvents, cleanChanges, massLimit, packEvents, unpackEvents, icsTimeToLocal,
 } from './core.mjs'
 
 // Posnetek strukture javne Wise strani (poenostavljen)
@@ -155,4 +155,13 @@ test('čiščenje zgodovine odstrani lažne pare odpade/novo', () => {
   ]
   const left = cleanChanges(hist, [{ ...base, uid: 'u2' }])
   assert.deepEqual(left.map((c) => c.uid), ['r'])
+})
+
+test('množične spremembe iz enega branja se počistijo', () => {
+  const ev = (i) => ({ uid: `u${i}`, course: 'M', type: 'PR', typeFull: 'PR', rooms: [], lecturers: [], groups: ['g'], note: '', start: `2026-11-20T08:${String(i % 60).padStart(2, '0')}`, end: '2026-11-20T09:00' })
+  const current = Array.from({ length: 1000 }, (_, i) => ev(i))
+  const mass = current.slice(0, 400).map((e) => ({ kind: 'mod', uid: e.uid, at: 'A', ev: e, old: { ...e, lecturers: ['X'] }, fields: ['lecturers'] }))
+  const real = [{ kind: 'mod', uid: 'u1', at: 'B', ev: current[1], old: { ...current[1], rooms: ['Z'] }, fields: ['rooms'] }]
+  assert.equal(massLimit(1000), 300)
+  assert.deepEqual(cleanChanges([...mass, ...real], current).map((c) => c.at), ['B'])
 })
